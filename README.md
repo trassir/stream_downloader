@@ -6,4 +6,4 @@
 ## Ivideon
 ```python3 ivideon_stream_downloader.py https://tv.ivideon.com/camera/200-31tqzoor9JDbaa9bSm06ph/0 /path/to/save/result.ts```
 ## yt
-```--save /path/to/file.mp4 --download_last_hours .1 --video_url "..."```
+```python3 yt_stream_downloader.py --save /path/to/file.mp4 --download_last_hours .1 --video_url "..."```
