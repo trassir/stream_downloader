@@ -3,11 +3,13 @@ import base64
 from argparse import ArgumentParser
 from pathlib import Path
 import json
+from datetime import datetime, timedelta
 
 from tqdm import tqdm
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import WebDriverException
 
 from utils import prepare_tmp_file_tree, cleanup_tmp_file_tree, concat_videos
 
@@ -57,8 +59,9 @@ def process(url: str, save_path: Path):
             cleanup_tmp_file_tree(tmp_dir)
 
 
-def get_response_with_video(url):
-    driver = init_driver(url)
+def get_response_with_video(url, reload_every_sec=10*60):
+    driver = init_driver()
+    driver.get(url)
     target_content_type = 'video/MP2T'
     
     def get_content_type(response):
@@ -74,27 +77,38 @@ def get_response_with_video(url):
         )
     
     def get_body(response):
-        return driver.execute_cdp_cmd(
-            'Network.getResponseBody',
-            {'requestId': response['params']['requestId']}
-        )
-
+        try:
+            result = driver.execute_cdp_cmd(
+                'Network.getResponseBody',
+                {'requestId': response['params']['requestId']}
+            )
+        except WebDriverException:
+            result = None
+        return result
+    timeout_between_reloads = timedelta(seconds=reload_every_sec)
+    timeout_between_checks_sec = 5
+    next_reload = datetime.now() + timeout_between_reloads
     while True:
-        time.sleep(5)
+        now = datetime.now()
+        if now >= next_reload:
+            next_reload = now + timeout_between_reloads
+            driver.get(url)
+        time.sleep(timeout_between_checks_sec)
         logs = driver.get_log('performance')
         for item in filter(is_video, map(parse_response, logs)):
-            yield item, get_body(item)
+            body = get_body(item)
+            if body is not None:
+                yield item, body
     driver.close()
 
 
-def init_driver(url):
+def init_driver():
     options = Options()
     options.headless = True
     options.add_experimental_option('w3c', False)
     cap = DesiredCapabilities.CHROME
     cap['loggingPrefs'] = {'performance': 'ALL'}
     driver = webdriver.Chrome(desired_capabilities=cap, options=options)
-    driver.get(url)
     return driver
 
 
