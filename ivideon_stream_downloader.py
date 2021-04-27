@@ -3,22 +3,20 @@ import base64
 from argparse import ArgumentParser
 from pathlib import Path
 import json
-from uuid import uuid4 as uuid
-import shutil
-import subprocess
-from typing import List
 
 from tqdm import tqdm
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.options import Options
 
+from utils import prepare_tmp_file_tree, cleanup_tmp_file_tree, concat_videos
 
 TMP_DIR_NAME = '_tmp_ivsd'
 
 
 def process(url: str, save_path: Path):
-    tmp_dir = prepare_tmp_file_tree(save_path)
+    tmp_dir = prepare_tmp_file_tree(tmp_parent=save_path.parent,
+                                    tmp_dir_basename=TMP_DIR_NAME)
 
     print(
         f'Press Ctrl+C to stop dumping *.ts files '
@@ -43,7 +41,7 @@ def process(url: str, save_path: Path):
         if len(dumped):
             print(f'Concatenating {len(dumped)} video files')
             try:
-                concat(dumped, save_path, tmp_dir)
+                concat_videos(dumped, save_path, tmp_dir)
             except Exception as e:
                 print(
                     f'Unable to concat videos: {e}. '
@@ -54,18 +52,6 @@ def process(url: str, save_path: Path):
         else:
             print('Nothing to concat :(')
             cleanup_tmp_file_tree(tmp_dir)
-
-
-def prepare_tmp_file_tree(save_filepath: Path):
-    tmp_dir = save_filepath.parent / f'{TMP_DIR_NAME}_{uuid().hex}'
-    cleanup_tmp_file_tree(tmp_dir)
-    tmp_dir.mkdir(parents=True)
-    return tmp_dir
-
-
-def cleanup_tmp_file_tree(tmp_dir):
-    if tmp_dir.exists():
-        shutil.rmtree(tmp_dir)
 
 
 def get_response_with_video(url):
@@ -113,28 +99,6 @@ def dump_body(body, out):
     res = base64.b64decode(body)
     with open(out, 'wb') as f:
         f.write(res)
-
-
-def concat(videos: List[Path], save_filepath: Path, tmp_dir: Path):
-    if len(videos):
-        list_filepath = tmp_dir / 'list.txt'
-        with open(list_filepath, 'w') as f_out:
-            f_out.write('\n'.join(f'file \'{f.absolute()}\'' for f in videos))
-
-        process = subprocess.Popen(
-            make_ffmpeg_concat_cmd(list_filepath, save_filepath),
-            stdout=subprocess.PIPE
-        )
-        process.communicate()
-        if process.returncode != 0:
-            print('Unable to concat files')
-        else:
-            print(f'DONE! Saved to {save_filepath}')
-
-
-def make_ffmpeg_concat_cmd(list_filepath: Path, save_filepath: Path):
-    cmd = 'ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i {} -c copy {}'
-    return cmd.format(list_filepath, save_filepath).split()
 
 
 arg_parser = ArgumentParser('Downloading streams from tv.ivideon.com')

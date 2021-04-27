@@ -4,12 +4,12 @@ import urllib.request
 import subprocess
 from argparse import ArgumentParser
 from pathlib import Path
-import shutil
 import re
 from typing import List
-from uuid import uuid4 as uuid
 
 from tqdm import tqdm
+
+from utils import prepare_tmp_file_tree, cleanup_tmp_file_tree, concat_videos
 
 """
 E.G: "https://r4---sn-gqn-p5ns.googlevideo.com/videoplayback?expire=1603041842& ..... 2.20201016.02.00&sq="
@@ -24,27 +24,16 @@ def download_stream(video_url: str,
                     save_filepath: Path,
                     video_len_hours: float = .25,
                     re_encode: bool = False):
-    tmp_dir = _prepare_tmp_file_tree(save_filepath)
+    tmp_dir = prepare_tmp_file_tree(tmp_parent=save_filepath.parent,
+                                    tmp_dir_basename=TMP_DIR_NAME)
 
     videos = _download(video_url, video_len_hours, tmp_dir)
     videos = _re_encode(videos, tmp_dir) if re_encode else videos
     print('Filtering invalid videos...')
     videos = _filter_valid_video(videos)
     print('Concatenating videos...')
-    _concat(videos, save_filepath, tmp_dir)
-    _cleanup_tmp_file_tree(tmp_dir)
-
-
-def _prepare_tmp_file_tree(save_filepath: Path):
-    tmp_dir = save_filepath.parent / f'{TMP_DIR_NAME}_{uuid().hex}'
-    _cleanup_tmp_file_tree(tmp_dir)
-    tmp_dir.mkdir(parents=True)
-    return tmp_dir
-
-
-def _cleanup_tmp_file_tree(tmp_dir):
-    if tmp_dir.exists():
-        shutil.rmtree(tmp_dir)
+    concat_videos(videos, save_filepath, tmp_dir)
+    cleanup_tmp_file_tree(tmp_dir)
 
 
 def _download(video_url: str,
@@ -121,27 +110,6 @@ def _filter_valid_video(videos: List[Path]) -> List[Path]:
 
 def _make_ffprobe_cmd(vid: Path):
     return f'ffprobe -loglevel warning {vid.absolute()}'.split()
-
-
-def _concat(videos: List[Path], save_filepath: Path, tmp_dir: Path):
-    list_filepath = tmp_dir / 'list.txt'
-    with open(list_filepath, 'w') as f_out:
-        f_out.write('\n'.join(f'file \'{f.absolute()}\'' for f in videos))
-
-    process = subprocess.Popen(
-        _make_ffmpeg_concat_cmd(list_filepath, save_filepath),
-        stdout=subprocess.PIPE
-    )
-    process.communicate()
-    if process.returncode != 0:
-        print('Unable to concat files')
-    else:
-        print(f'DONE! Saved to {save_filepath}')
-
-
-def _make_ffmpeg_concat_cmd(list_filepath: Path, save_filepath: Path):
-    cmd = 'ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i {} -c copy {}'
-    return cmd.format(list_filepath, save_filepath).split()
 
 
 arg_parser = ArgumentParser('Download youtube video-stream for last hours')
