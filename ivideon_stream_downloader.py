@@ -23,21 +23,24 @@ def process(url: str, save_path: Path):
         f'and concat them into {save_path}'
     )
     try:
-        dumped_log = tqdm(total=0, bar_format='{desc}')
+        dumped_log = tqdm(total=0,
+                          desc='Waiting for video fragments...',
+                          bar_format='{desc} [{elapsed}]')
         dump_dir = tmp_dir / 'dump'
         dump_dir.mkdir(parents=True)
 
         dumped = []
         for idx, (event, body) in enumerate(get_response_with_video(url)):
-            date, body = event['params']['headers']['date'], body['body']
+            body = body['body']
             out = dump_dir / f'{idx}.ts'
             try:
                 dump_body(body, out)
                 dumped.append(out)
-                dumped_log.set_description_str(f'Dumped {out}: {date}')
+                dumped_log.set_description_str(f'Dumped {out.name}')
             except Exception as e:
-                dumped_log.set_description_str(f'Unable to dump {out}: {e}')
+                dumped_log.set_description_str(f'Unable to dump {out.name}: {e}')
     except KeyboardInterrupt:
+        dumped_log.close()
         if len(dumped):
             print(f'Concatenating {len(dumped)} video files')
             try:
