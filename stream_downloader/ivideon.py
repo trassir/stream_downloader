@@ -10,6 +10,7 @@ from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
+import chromedriver_autoinstaller
 
 from stream_downloader.utils import (prepare_tmp_file_tree,
                                      cleanup_tmp_file_tree, concat_videos)
@@ -104,6 +105,7 @@ def get_response_with_video(url, reload_every_sec=10*60):
 
 
 def init_driver():
+    chromedriver_autoinstaller.install()
     options = Options()
     options.headless = True
     options.add_experimental_option('w3c', False)
