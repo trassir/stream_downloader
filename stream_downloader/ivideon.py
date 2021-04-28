@@ -11,7 +11,8 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 
-from utils import prepare_tmp_file_tree, cleanup_tmp_file_tree, concat_videos
+from stream_downloader.utils import (prepare_tmp_file_tree,
+                                     cleanup_tmp_file_tree, concat_videos)
 
 TMP_DIR_NAME = '_tmp_ivsd'
 
@@ -118,11 +119,15 @@ def dump_body(body, out):
         f.write(res)
 
 
-arg_parser = ArgumentParser('Downloading streams from tv.ivideon.com')
-arg_parser.add_argument('url', help='Stream url', type=str)
-arg_parser.add_argument('save', help='Directory to save video', type=Path, default='.')
+def main():
+    arg_parser = ArgumentParser('Downloading streams from tv.ivideon.com')
+    arg_parser.add_argument('url', help='Stream url', type=str)
+    arg_parser.add_argument('save', help='Directory to save video',
+                            type=Path, default='.')
+
+    args = arg_parser.parse_args()
+    process(args.url, args.save)
 
 
 if __name__ == '__main__':
-    args = arg_parser.parse_args()
-    process(args.url, args.save)
+    main()

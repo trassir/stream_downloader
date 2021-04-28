@@ -9,7 +9,8 @@ from typing import List
 
 from tqdm import tqdm
 
-from utils import prepare_tmp_file_tree, cleanup_tmp_file_tree, concat_videos
+from stream_downloader.utils import (prepare_tmp_file_tree,
+                                     cleanup_tmp_file_tree, concat_videos)
 
 """
 E.G: "https://r4---sn-gqn-p5ns.googlevideo.com/videoplayback?expire=1603041842& ..... 2.20201016.02.00&sq="
@@ -112,14 +113,18 @@ def _make_ffprobe_cmd(vid: Path):
     return f'ffprobe -loglevel warning {vid.absolute()}'.split()
 
 
-arg_parser = ArgumentParser('Download youtube video-stream for last hours')
-arg_parser.add_argument('--video_url', type=str)
-arg_parser.add_argument('--save', type=Path, help='Filepath to save video')
-arg_parser.add_argument('--download_last_hours', type=float, default=.25,
-                        help='downloads stream for last given hours')
-arg_parser.add_argument('--re_encode', type=int, default=1)
+def main():
+    arg_parser = ArgumentParser('Download youtube video-stream for last hours')
+    arg_parser.add_argument('--video_url', type=str)
+    arg_parser.add_argument('--save', type=Path, help='Filepath to save video')
+    arg_parser.add_argument('--download_last_hours', type=float, default=.25,
+                            help='downloads stream for last given hours')
+    arg_parser.add_argument('--re_encode', type=int, default=1)
+
+    args = arg_parser.parse_args()
+    download_stream(args.video_url, args.save,
+                    args.download_last_hours, args.re_encode)
 
 
 if __name__ == '__main__':
-    args = arg_parser.parse_args()
-    download_stream(args.video_url, args.save, args.download_last_hours, args.re_encode)
+    main()
