@@ -1,8 +1,13 @@
 import shutil
 from pathlib import Path
 from uuid import uuid4 as uuid
-from typing import List
+from typing import List, Union
 import subprocess
+
+from seleniumwire import webdriver
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.chrome.options import Options
+import chromedriver_autoinstaller
 
 
 def prepare_tmp_file_tree(tmp_parent: Path, tmp_dir_basename: str):
@@ -38,3 +43,18 @@ def make_ffmpeg_concat_cmd(list_filepath: Path, save_filepath: Path):
     cmd = 'ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i {} -c copy {}'
     return cmd.format(list_filepath, save_filepath).split()
 
+
+def init_driver(headless=True,
+                extensions_paths: Union[List[Path], None] = None):
+    chromedriver_autoinstaller.install()
+    options = Options()
+    options.headless = headless
+    options.add_experimental_option('w3c', False)
+    if (extensions_paths is not None
+            and isinstance(extensions_paths, (list, tuple))):
+        for ext in extensions_paths:
+            options.add_extension(str(ext))
+    cap = DesiredCapabilities.CHROME
+    cap['loggingPrefs'] = {'performance': 'ALL'}
+    driver = webdriver.Chrome(desired_capabilities=cap, options=options)
+    return driver

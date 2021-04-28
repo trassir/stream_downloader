@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import urllib.request
 import subprocess
 from argparse import ArgumentParser
@@ -9,7 +7,7 @@ from typing import List
 
 from tqdm import tqdm
 
-from stream_downloader.utils import (prepare_tmp_file_tree,
+from stream_downloader.utils import (prepare_tmp_file_tree, init_driver,
                                      cleanup_tmp_file_tree, concat_videos)
 
 """
@@ -19,6 +17,7 @@ The sound link should contain: &mime=audio in it.
 
 SEC_PER_PART = 5
 TMP_DIR_NAME = '_tmp_ytsd'
+URL_RE = re.compile(r'^(.+?&sq=)(\d+)&')
 
 
 def download_stream(video_url: str,
@@ -27,7 +26,7 @@ def download_stream(video_url: str,
                     re_encode: bool = False):
     tmp_dir = prepare_tmp_file_tree(tmp_parent=save_filepath.parent,
                                     tmp_dir_basename=TMP_DIR_NAME)
-
+    video_url = _get_video_file_url(video_url)
     videos = _download(video_url, video_len_hours, tmp_dir)
     videos = _re_encode(videos, tmp_dir) if re_encode else videos
     print('Filtering invalid videos...')
@@ -35,6 +34,42 @@ def download_stream(video_url: str,
     print('Concatenating videos...')
     concat_videos(videos, save_filepath, tmp_dir)
     cleanup_tmp_file_tree(tmp_dir)
+
+
+def _get_video_file_url(url: str):
+    print('Initializing driver...')
+    adblock_filepath = Path(__file__).parent.absolute() / 'adblock.crx'
+    driver = init_driver(headless=False, extensions_paths=[adblock_filepath])
+
+    print(f'Connecting to {url}...')
+    driver.get(url)
+
+    input('Press any button when you are ready with quality')
+
+    print('Picking video url...')
+    target_content_types = ['video/mp4', 'video/webm']
+
+    def is_target(request):
+        return (
+            'videoplayback' in request.path
+            and request.response is not None
+            and request.response.headers['Content-Type'] in target_content_types
+            and URL_RE.match(request.url) is not None
+        )
+
+    target = None
+    begin, end = 0, len(driver.requests)
+    while True:
+        for r in reversed(driver.requests[begin:end]):
+            if is_target(r):
+                target = r
+                break
+        else:
+            begin, end = end, len(driver.requests)
+            continue
+        break
+    driver.close()
+    return target.url
 
 
 def _download(video_url: str,
@@ -62,8 +97,7 @@ def _download(video_url: str,
 
 
 def _parse_video_url(url):
-    rexp = re.compile(r'^(.+?&sq=)(\d+)&')
-    match = rexp.match(url)
+    match = URL_RE.match(url)
     if match is None:
         raise ValueError(f'Wrong video url format \n{url}\n\n')
     return match.group(1), int(match.group(2))
@@ -115,8 +149,8 @@ def _make_ffprobe_cmd(vid: Path):
 
 def main():
     arg_parser = ArgumentParser('Download youtube video-stream for last hours')
-    arg_parser.add_argument('--video_url', type=str)
-    arg_parser.add_argument('--save', type=Path, help='Filepath to save video')
+    arg_parser.add_argument('video_url', type=str)
+    arg_parser.add_argument('save', type=Path, help='Filepath to save video')
     arg_parser.add_argument('--download_last_hours', type=float, default=.25,
                             help='downloads stream for last given hours')
     arg_parser.add_argument('--re_encode', type=int, default=1)
