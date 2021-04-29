@@ -95,12 +95,13 @@ def _download(video_url: str,
                 _, msg = urllib.request.urlretrieve(f'{url}{part}', vid_out)
                 loaded = True
                 result.append(vid_out)
+                break
             except Exception as e:
                 print(f'Unable to download part {part}: {e}. Trying for {retrieve_idx} time')
                 sleep(1 + retrieve_idx)
-                continue
-            if not loaded:
-                print(f'Skipped part {part}, unable to download')
+
+        if not loaded:
+            print(f'Skipped part {part}, unable to download')
 
     return result
 
