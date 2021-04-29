@@ -6,13 +6,9 @@ import json
 from datetime import datetime, timedelta
 
 from tqdm import tqdm
-from selenium import webdriver
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
-import chromedriver_autoinstaller
 
-from stream_downloader.utils import (prepare_tmp_file_tree,
+from stream_downloader.utils import (init_driver, prepare_tmp_file_tree,
                                      cleanup_tmp_file_tree, concat_videos)
 
 TMP_DIR_NAME = '_tmp_ivsd'
@@ -102,17 +98,6 @@ def get_response_with_video(url, reload_every_sec=10*60):
             if body is not None:
                 yield item, body
     driver.close()
-
-
-def init_driver():
-    chromedriver_autoinstaller.install()
-    options = Options()
-    options.headless = True
-    options.add_experimental_option('w3c', False)
-    cap = DesiredCapabilities.CHROME
-    cap['loggingPrefs'] = {'performance': 'ALL'}
-    driver = webdriver.Chrome(desired_capabilities=cap, options=options)
-    return driver
 
 
 def dump_body(body, out):
