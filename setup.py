@@ -21,6 +21,7 @@ setup(
     license='commercial',
     author='trassir',
     description='Downloading streams from youtube and ivideon',
+    include_package_data=True,
     entry_points={
         'console_scripts': [
             'ivideon_stream_downloader=stream_downloader.ivideon:main',
