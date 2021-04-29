@@ -3,6 +3,7 @@ import subprocess
 from argparse import ArgumentParser
 from pathlib import Path
 import re
+from time import sleep
 from typing import List
 
 from tqdm import tqdm
@@ -74,7 +75,9 @@ def _get_video_file_url(url: str):
 
 def _download(video_url: str,
               video_len_hours: float,
-              tmp_dir: Path) -> List[Path]:
+              tmp_dir: Path,
+              retrieve_count: int = 10) -> List[Path]:
+    retrieve_count = max(1, retrieve_count)
     url, current_part = _parse_video_url(video_url)
     n_parts = int(video_len_hours * 3600 / SEC_PER_PART)
     begin, end = max(1, current_part - n_parts + 1 * bool(n_parts)), current_part
@@ -86,12 +89,18 @@ def _download(video_url: str,
     for part in tqdm(range(begin, end + 1),
                      desc='Downloading video parts of the stream: '):
         vid_out = vid_dir / f'{part}.mp4'
-        try:
-            urllib.request.urlretrieve(f'{url}{part}', vid_out)
-            result.append(vid_out)
-        except Exception as e:
-            print(f'Unable to download part {part}, skipping it: {e}')
-            continue
+        loaded = False
+        for retrieve_idx in range(retrieve_count):
+            try:
+                _, msg = urllib.request.urlretrieve(f'{url}{part}', vid_out)
+                loaded = True
+                result.append(vid_out)
+            except Exception as e:
+                print(f'Unable to download part {part}: {e}. Trying for {retrieve_idx} time')
+                sleep(1 + retrieve_idx)
+                continue
+            if not loaded:
+                print(f'Skipped part {part}, unable to download')
 
     return result
 
