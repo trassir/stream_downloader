@@ -27,14 +27,18 @@ def download_stream(video_url: str,
                     re_encode: bool = False):
     tmp_dir = prepare_tmp_file_tree(tmp_parent=save_filepath.parent,
                                     tmp_dir_basename=TMP_DIR_NAME)
-    video_url = _get_video_file_url(video_url)
-    videos = _download(video_url, video_len_hours, tmp_dir)
-    videos = _re_encode(videos, tmp_dir) if re_encode else videos
-    print('Filtering invalid videos...')
-    videos = _filter_valid_video(videos)
-    print('Concatenating videos...')
-    concat_videos(videos, save_filepath, tmp_dir)
-    cleanup_tmp_file_tree(tmp_dir)
+    try:
+        video_url = _get_video_file_url(video_url)
+        videos = _download(video_url, video_len_hours, tmp_dir)
+        videos = _re_encode(videos, tmp_dir) if re_encode else videos
+        print('Filtering invalid videos...')
+        videos = _filter_valid_video(videos)
+        print('Concatenating videos...')
+        concat_videos(videos, save_filepath, tmp_dir)
+        cleanup_tmp_file_tree(tmp_dir)
+    except KeyboardInterrupt:
+        print('Keyboard interrupt, cleaning up...')
+        cleanup_tmp_file_tree(tmp_dir)
 
 
 def _get_video_file_url(url: str):
