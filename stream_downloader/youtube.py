@@ -216,8 +216,12 @@ def _make_ffprobe_cmd(vid: Path):
 
 def main():
     arg_parser = ArgumentParser('Download youtube video-stream for last hours')
-    arg_parser.add_argument('video_url', type=str)
-    arg_parser.add_argument('save', type=Path, help='Filepath to save video')
+    arg_parser.add_argument('--urls', type=str, nargs='+',
+                            help='space separated youtube video URLs')
+    arg_parser.add_argument('--result_dir', type=Path,
+                            help='path to save downloaded videos')
+    arg_parser.add_argument('--result_files', type=str, nargs='+',
+                            help='space separated file names to save youtube videos')
     arg_parser.add_argument('--download_last_hours', type=float, default=.25,
                             help='downloads stream for last given hours')
     arg_parser.add_argument('--re_encode', type=int, default=1)
@@ -225,9 +229,25 @@ def main():
     arg_parser.add_argument('--quality_changed_timeout_sec', type=int, default=2)
 
     args = arg_parser.parse_args()
-    download_stream(args.video_url, args.save,
-                    args.download_last_hours, args.re_encode,
-                    args.download_threads, args.quality_changed_timeout_sec)
+    assert args.urls is not None, 'Specify urls to download'
+    assert args.result_dir is not None, 'Specify dir to save videos'
+    assert args.result_files is not None, 'Specify output video filenames'
+    assert len(args.urls) == len(args.result_files), \
+        'Number of videos should be equal to the number of output files'
+    args.result_dir.mkdir(parents=True, exist_ok=True)
+    for url, filename in zip(args.urls, args.result_files):
+        try:
+            download_stream(
+                url,
+                args.result_dir / filename,
+                args.download_last_hours,
+                args.re_encode,
+                args.download_threads,
+                args.quality_changed_timeout_sec
+            )
+        except Exception as e:
+            print(f'Unable to download {url} ({filename}), skipping it: {e}')
+            continue
 
 
 if __name__ == '__main__':
