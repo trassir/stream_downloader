@@ -8,6 +8,7 @@ from time import sleep
 from typing import List, Optional, Tuple
 
 from tqdm import tqdm
+from selenium.common.exceptions import NoSuchElementException
 
 from stream_downloader.utils import (prepare_tmp_file_tree, init_driver,
                                      cleanup_tmp_file_tree, concat_videos)
@@ -26,11 +27,12 @@ def download_stream(video_url: str,
                     save_filepath: Path,
                     video_len_hours: float = .25,
                     re_encode: bool = False,
-                    download_threads: int = 8):
+                    download_threads: int = 8,
+                    quality_changed_timeout_sec: int = 2):
     tmp_dir = prepare_tmp_file_tree(tmp_parent=save_filepath.parent,
                                     tmp_dir_basename=TMP_DIR_NAME)
     try:
-        video_url = _get_video_file_url(video_url)
+        video_url = _get_video_file_url(video_url, quality_changed_timeout_sec)
         videos = _download(video_url, video_len_hours, tmp_dir, pool_size=download_threads)
         videos = _re_encode(videos, tmp_dir) if re_encode else videos
         videos = _filter_valid_video(videos)
@@ -42,15 +44,35 @@ def download_stream(video_url: str,
         cleanup_tmp_file_tree(tmp_dir)
 
 
-def _get_video_file_url(url: str):
+def choose_best_quality(driver, quality_changed_timeout_sec):
+    driver.find_element_by_css_selector('button.ytp-button.ytp-settings-button').click()
+    try:
+        driver.find_element_by_xpath("//div[contains(text(),'Quality')]").click()
+    except NoSuchElementException:
+        return
+    sleep(1)
+
+    def find_quality_control(quality):
+        xpath = f"//span[contains(string(),'{quality}')]"
+        try:
+            return driver.find_element_by_xpath(xpath)
+        except NoSuchElementException:
+            return None
+
+    control = find_quality_control('1080p') or find_quality_control('720p')
+    if control:
+        control.click()
+        sleep(quality_changed_timeout_sec)
+
+
+def _get_video_file_url(url: str, quality_changed_timeout_sec: int):
     print('Initializing driver...')
     adblock_filepath = Path(__file__).parent.absolute() / 'adblock_plus.crx'
     driver = init_driver(headless=False, extensions_paths=[adblock_filepath])
 
     print(f'Connecting to {url}...')
     driver.get(url)
-
-    input('Press any button when you are ready with quality')
+    choose_best_quality(driver, quality_changed_timeout_sec)
 
     print('Picking video url...')
     target_content_types = ['video/mp4', 'video/webm']
@@ -191,10 +213,12 @@ def main():
                             help='downloads stream for last given hours')
     arg_parser.add_argument('--re_encode', type=int, default=1)
     arg_parser.add_argument('--download-threads', type=int, default=4)
+    arg_parser.add_argument('--quality_changed_timeout_sec', type=int, default=2)
 
     args = arg_parser.parse_args()
     download_stream(args.video_url, args.save,
-                    args.download_last_hours, args.re_encode, args.download_threads)
+                    args.download_last_hours, args.re_encode,
+                    args.download_threads, args.quality_changed_timeout_sec)
 
 
 if __name__ == '__main__':
