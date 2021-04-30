@@ -4,12 +4,19 @@ from argparse import ArgumentParser
 from pathlib import Path
 import json
 from datetime import datetime, timedelta
+import logging
 
 from tqdm import tqdm
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver import ActionChains
 
 from stream_downloader.utils import (init_driver, prepare_tmp_file_tree,
                                      cleanup_tmp_file_tree, concat_videos)
+
+logging.getLogger('urllib3').setLevel(logging.ERROR)
 
 TMP_DIR_NAME = '_tmp_ivsd'
 
@@ -30,7 +37,8 @@ def process(url: str, save_path: Path):
         dump_dir.mkdir(parents=True)
 
         dumped = []
-        for idx, (event, body) in enumerate(get_response_with_video(url)):
+        driver = init_driver()
+        for idx, (event, body) in enumerate(get_response_with_video(driver, url)):
             body = body['body']
             out = dump_dir / f'{idx}.ts'
             try:
@@ -40,6 +48,7 @@ def process(url: str, save_path: Path):
             except Exception as e:
                 dumped_log.set_description_str(f'Unable to dump {out.name}: {e}')
     except KeyboardInterrupt:
+        driver.quit()
         dumped_log.close()
         if len(dumped):
             print(f'Concatenating {len(dumped)} video files')
@@ -57,9 +66,9 @@ def process(url: str, save_path: Path):
             cleanup_tmp_file_tree(tmp_dir)
 
 
-def get_response_with_video(url, reload_every_sec=10*60):
-    driver = init_driver()
+def get_response_with_video(driver, url, reload_every_sec=10*60):
     driver.get(url)
+    run_video_if_needed(driver)
     target_content_type = 'video/MP2T'
     
     def get_content_type(response):
@@ -97,7 +106,20 @@ def get_response_with_video(url, reload_every_sec=10*60):
             body = get_body(item)
             if body is not None:
                 yield item, body
-    driver.close()
+
+
+def run_video_if_needed(driver):
+    try:
+        frame = driver.find_element_by_class_name('iv-tv-embed-iframe')
+        driver.switch_to_frame(frame)
+        play = WebDriverWait(driver, 20).until(
+            EC.element_to_be_clickable(
+                (By.CLASS_NAME, 'b-embed-btn-play-image')
+            )
+        )
+        ActionChains(driver).move_to_element(play).click().perform()
+    except:
+        return
 
 
 def dump_body(body, out):

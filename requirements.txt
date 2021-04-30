@@ -1,3 +1,4 @@
 tqdm
+selenium
 selenium-wire
 chromedriver-autoinstaller
