@@ -59,8 +59,17 @@ def choose_best_quality(driver, quality_changed_timeout_sec):
         except NoSuchElementException:
             return None
 
-    control = find_quality_control('1080p') or find_quality_control('720p')
-    if control:
+    available_quality_labels = driver.execute_script("""
+        const player = document.getElementById('movie_player');
+        return player.getAvailableQualityLabels();
+    """)
+    try:
+        max_quality_label = max(available_quality_labels,
+                                key=lambda l: int(l.split('p')[0]))
+    except:
+        max_quality_label = available_quality_labels[0]
+    control = find_quality_control(max_quality_label)
+    if control is not None:
         control.click()
         sleep(quality_changed_timeout_sec)
 
