@@ -44,7 +44,7 @@ def download_stream(video_url: str,
 
 def _get_video_file_url(url: str):
     print('Initializing driver...')
-    adblock_filepath = Path(__file__).parent.absolute() / 'adblock.crx'
+    adblock_filepath = Path(__file__).parent.absolute() / 'adblock_plus.crx'
     driver = init_driver(headless=False, extensions_paths=[adblock_filepath])
 
     print(f'Connecting to {url}...')
