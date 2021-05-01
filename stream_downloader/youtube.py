@@ -44,16 +44,30 @@ def download_stream(video_url: str,
         cleanup_tmp_file_tree(tmp_dir)
 
 
+def click(driver, elt):
+    driver.execute_script('arguments[0].click();', elt)
+
+
 def choose_best_quality(driver, quality_changed_timeout_sec):
-    driver.find_element_by_css_selector('button.ytp-button.ytp-settings-button').click()
+    settings_btn = driver.find_element_by_css_selector(
+        'button.ytp-button.ytp-settings-button'
+    )
+    click(driver, settings_btn)
     try:
-        driver.find_element_by_xpath("//div[contains(text(),'Quality')]").click()
+        quality_menu = driver.find_element_by_xpath(
+            "//div[@class='ytp-menuitem-label' and contains(text(),'Quality')]"
+        )
+        click(driver, quality_menu)
     except NoSuchElementException:
         return
     sleep(1)
 
     def find_quality_control(quality):
-        xpath = f"//span[contains(string(),'{quality}')]"
+        xpath = f"""
+        //div[contains(@class, 'ytp-popup') 
+        and contains(@class, 'ytp-settings-menu')]
+        //span[contains(string(),'{quality}')]
+        """
         try:
             return driver.find_element_by_xpath(xpath)
         except NoSuchElementException:
@@ -70,7 +84,7 @@ def choose_best_quality(driver, quality_changed_timeout_sec):
         max_quality_label = available_quality_labels[0]
     control = find_quality_control(max_quality_label)
     if control is not None:
-        control.click()
+        click(driver, control)
         sleep(quality_changed_timeout_sec)
 
 
@@ -81,6 +95,8 @@ def _get_video_file_url(url: str, quality_changed_timeout_sec: int):
 
     print(f'Connecting to {url}...')
     driver.get(url)
+    driver.maximize_window()
+    sleep(1)
     choose_best_quality(driver, quality_changed_timeout_sec)
 
     print('Picking video url...')
