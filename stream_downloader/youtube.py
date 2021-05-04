@@ -54,11 +54,12 @@ def choose_best_quality(driver, quality_changed_timeout_sec):
     )
     click(driver, settings_btn)
     try:
-        quality_menu = driver.find_element_by_xpath(
-            "//div[@class='ytp-menuitem-label' and contains(text(),'Quality')]"
-        )
+        quality_menu = driver.find_elements_by_xpath(
+            "//div[@class='ytp-panel-menu']"
+            "//div[@class='ytp-menuitem']"
+        )[-1]
         click(driver, quality_menu)
-    except NoSuchElementException:
+    except Exception:
         return
     sleep(1)
 
