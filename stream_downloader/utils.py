@@ -33,10 +33,7 @@ def concat_videos(videos: List[Path], save_filepath: Path, tmp_dir: Path):
             stdout=subprocess.PIPE
         )
         process.communicate()
-        if process.returncode != 0:
-            print('Unable to concat files')
-        else:
-            print(f'DONE! Saved to {save_filepath}')
+        return process.returncode == 0
 
 
 def make_ffmpeg_concat_cmd(list_filepath: Path, save_filepath: Path):

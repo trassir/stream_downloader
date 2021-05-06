@@ -37,7 +37,11 @@ def download_stream(video_url: str,
         videos = _re_encode(videos, tmp_dir) if re_encode else videos
         videos = _filter_valid_video(videos)
         print('Concatenating videos...')
-        concat_videos(videos, save_filepath, tmp_dir)
+        ok = concat_videos(videos, save_filepath, tmp_dir)
+        if ok:
+            print(f'DONE! Saved to {save_filepath}')
+        else:
+            print('Unable to concat files')
         cleanup_tmp_file_tree(tmp_dir)
     except KeyboardInterrupt:
         print('Keyboard interrupt, cleaning up...')
