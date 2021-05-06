@@ -204,7 +204,7 @@ def _re_encode(videos: List[Path],
 
 
 def _make_ffmpeg_re_encode_cmd(in_: Path, out: Path):
-    return f'ffmpeg -hide_banner -loglevel error -i {in_} -c copy {out}'.split()
+    return f'ffmpeg -hide_banner -loglevel error -i {in_} -c copy {out} -nostdin'.split()
 
 
 def _is_valid(vid: Path) -> bool:

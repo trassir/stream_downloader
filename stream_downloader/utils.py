@@ -40,7 +40,7 @@ def concat_videos(videos: List[Path], save_filepath: Path, tmp_dir: Path):
 
 
 def make_ffmpeg_concat_cmd(list_filepath: Path, save_filepath: Path):
-    cmd = 'ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i {} -c copy {}'
+    cmd = 'ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i {} -c copy {} -nostdin'
     return cmd.format(list_filepath, save_filepath).split()
 
 
