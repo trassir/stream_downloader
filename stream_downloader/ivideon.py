@@ -1,10 +1,11 @@
-import time
+from time import sleep
 import base64
 from argparse import ArgumentParser
 from pathlib import Path
 import json
 from datetime import datetime, timedelta
 import logging
+from multiprocessing import Process
 
 from tqdm import tqdm
 from selenium.common.exceptions import WebDriverException
@@ -13,26 +14,30 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver import ActionChains
 
-from stream_downloader.utils import (init_driver, prepare_tmp_file_tree,
-                                     cleanup_tmp_file_tree, concat_videos)
+from utils import (init_driver, prepare_tmp_file_tree, cleanup_tmp_file_tree,
+                   concat_videos)
 
 logging.getLogger('urllib3').setLevel(logging.ERROR)
 
 TMP_DIR_NAME = '_tmp_ivsd'
 
 
-def process(url: str, save_path: Path):
+def download_video(url: str, save_path: Path, proc_idx: int):
     tmp_dir = prepare_tmp_file_tree(tmp_parent=save_path.parent,
                                     tmp_dir_basename=TMP_DIR_NAME)
 
-    print(
-        f'Press Ctrl+C to stop dumping *.ts files '
-        f'and concat them into {save_path}'
-    )
+    def with_prefix(msg):
+        return f'{save_path.name}: {msg}'
+
+    log = tqdm(total=0,
+               position=proc_idx,
+               bar_format='{desc} {elapsed}',
+               desc=with_prefix('waiting for video chunks...'))
+
+    def log_msg(msg, prefix=True):
+        log.set_description_str(with_prefix(msg) if prefix else msg)
+
     try:
-        dumped_log = tqdm(total=0,
-                          desc='Waiting for video fragments...',
-                          bar_format='{desc} [{elapsed}]')
         dump_dir = tmp_dir / 'dump'
         dump_dir.mkdir(parents=True)
 
@@ -44,26 +49,30 @@ def process(url: str, save_path: Path):
             try:
                 dump_body(body, out)
                 dumped.append(out)
-                dumped_log.set_description_str(f'Dumped {out.name}')
+                log_msg(f'downloaded {idx + 1} chunks')
             except Exception as e:
-                dumped_log.set_description_str(f'Unable to dump {out.name}: {e}')
+                log_msg(f'unable to download {out.name}. {e}')
     except KeyboardInterrupt:
         driver.quit()
-        dumped_log.close()
         if len(dumped):
-            print(f'Concatenating {len(dumped)} video files')
+            log_msg(f'concatenating {len(dumped)} video files')
             try:
-                concat_videos(dumped, save_path, tmp_dir)
+                ok = concat_videos(dumped, save_path, tmp_dir)
+                if ok:
+                    log_msg(f'DONE! Saved to {save_path}')
+                else:
+                    log_msg(f'unable to concat videos {ok}')
             except Exception as e:
-                print(
-                    f'Unable to concat videos: {e}. '
+                log_msg(
+                    f'unable to concat videos: {e}. '
                     f'All downloaded video parts could be found in {dump_dir}'
                 )
-            else:
-                cleanup_tmp_file_tree(tmp_dir)
+                log.close()
+                return
         else:
-            print('Nothing to concat :(')
-            cleanup_tmp_file_tree(tmp_dir)
+            log_msg('nothing to concat :(')
+        cleanup_tmp_file_tree(tmp_dir)
+        log.close()
 
 
 def get_response_with_video(driver, url, reload_every_sec=10*60):
@@ -100,7 +109,7 @@ def get_response_with_video(driver, url, reload_every_sec=10*60):
         if now >= next_reload:
             next_reload = now + timeout_between_reloads
             driver.get(url)
-        time.sleep(timeout_between_checks_sec)
+        sleep(timeout_between_checks_sec)
         logs = driver.get_log('performance')
         for item in filter(is_video, map(parse_response, logs)):
             body = get_body(item)
@@ -130,12 +139,36 @@ def dump_body(body, out):
 
 def main():
     arg_parser = ArgumentParser('Downloading streams from tv.ivideon.com')
-    arg_parser.add_argument('url', help='Stream url', type=str)
-    arg_parser.add_argument('save', help='Directory to save video',
-                            type=Path, default='.')
+    arg_parser.add_argument('--urls', type=str, nargs='+',
+                            help='space separated ivideon video URLs')
+    arg_parser.add_argument('--result_dir', type=Path,
+                            help='path to save downloaded videos')
+    arg_parser.add_argument('--result_files', type=str, nargs='+',
+                            help='space separated file names to save ivideon videos')
 
     args = arg_parser.parse_args()
-    process(args.url, args.save)
+    assert args.urls is not None, 'Specify urls to download'
+    assert args.result_dir is not None, 'Specify dir to save videos'
+    assert args.result_files is not None, 'Specify output video filenames'
+    assert len(args.urls) == len(args.result_files), \
+        'Number of videos should be equal to the number of output files'
+    args.result_dir.mkdir(parents=True, exist_ok=True)
+    sep = f'\n{"=" * 80}\n'
+    tqdm.write(
+        f'{sep}\tPress Ctrl+C to stop downloading chunks '
+        f'and save output video files{sep}',
+    )
+    processes = []
+    for idx, (url, filename) in enumerate(zip(args.urls, args.result_files)):
+        p = Process(target=download_video,
+                    args=(url, args.result_dir / filename, idx))
+        p.start()
+        processes.append(p)
+    try:
+        for p in processes:
+            p.join()
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == '__main__':

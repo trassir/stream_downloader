@@ -10,8 +10,8 @@ from typing import List, Optional, Tuple
 from tqdm import tqdm
 from selenium.common.exceptions import NoSuchElementException
 
-from stream_downloader.utils import (prepare_tmp_file_tree, init_driver,
-                                     cleanup_tmp_file_tree, concat_videos)
+from utils import (prepare_tmp_file_tree, init_driver, cleanup_tmp_file_tree,
+                   concat_videos)
 
 """
 E.G: "https://r4---sn-gqn-p5ns.googlevideo.com/videoplayback?expire=1603041842& ..... 2.20201016.02.00&sq="
