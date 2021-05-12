@@ -14,8 +14,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver import ActionChains
 
-from utils import (init_driver, prepare_tmp_file_tree, cleanup_tmp_file_tree,
-                   concat_videos)
+from stream_downloader.utils import (init_driver, prepare_tmp_file_tree,
+                                     cleanup_tmp_file_tree, concat_videos)
 
 logging.getLogger('urllib3').setLevel(logging.ERROR)
 
