@@ -42,7 +42,8 @@ def make_ffmpeg_concat_cmd(list_filepath: Path, save_filepath: Path):
 
 
 def init_driver(headless=True,
-                extensions_paths: Union[List[Path], None] = None):
+                extensions_paths: Union[List[Path], None] = None,
+                request_storage_base_dir: Union[Path, None] = None):
     chromedriver_autoinstaller.install()
     options = Options()
     options.headless = headless
@@ -53,5 +54,13 @@ def init_driver(headless=True,
             options.add_extension(str(ext))
     cap = DesiredCapabilities.CHROME
     cap['loggingPrefs'] = {'performance': 'ALL'}
-    driver = webdriver.Chrome(desired_capabilities=cap, options=options)
+    kwargs = dict(
+        desired_capabilities=cap,
+        options=options
+    )
+    if request_storage_base_dir is not None:
+        kwargs['seleniumwire_options'] = {
+            'request_storage_base_dir': str(request_storage_base_dir)
+        }
+    driver = webdriver.Chrome(**kwargs)
     return driver

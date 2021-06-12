@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timedelta
 import logging
 from multiprocessing import Process
+from typing import Union
 
 from tqdm import tqdm
 from selenium.common.exceptions import WebDriverException
@@ -22,7 +23,8 @@ logging.getLogger('urllib3').setLevel(logging.ERROR)
 TMP_DIR_NAME = '_tmp_ivsd'
 
 
-def download_video(url: str, save_path: Path, proc_idx: int):
+def download_video(url: str, save_path: Path, proc_idx: int,
+                   request_storage_base_dir: Union[Path, None]):
     tmp_dir = prepare_tmp_file_tree(tmp_parent=save_path.parent,
                                     tmp_dir_basename=TMP_DIR_NAME)
 
@@ -42,7 +44,7 @@ def download_video(url: str, save_path: Path, proc_idx: int):
         dump_dir.mkdir(parents=True)
 
         dumped = []
-        driver = init_driver()
+        driver = init_driver(request_storage_base_dir=request_storage_base_dir)
         for idx, (event, body) in enumerate(get_response_with_video(driver, url)):
             body = body['body']
             out = dump_dir / f'{idx}.ts'
@@ -145,6 +147,8 @@ def main():
                             help='path to save downloaded videos')
     arg_parser.add_argument('--result_files', type=str, nargs='+',
                             help='space separated file names to save ivideon videos')
+    arg_parser.add_argument('--move_request_dir', type=int, default=0,
+                            help='Move selenium folder to result_dir')
 
     args = arg_parser.parse_args()
     assert args.urls is not None, 'Specify urls to download'
@@ -153,6 +157,7 @@ def main():
     assert len(args.urls) == len(args.result_files), \
         'Number of videos should be equal to the number of output files'
     args.result_dir.mkdir(parents=True, exist_ok=True)
+    request_storage_base_dir = args.result_dir if args.move_request_dir else None
     sep = f'\n{"=" * 80}\n'
     tqdm.write(
         f'{sep}\tPress Ctrl+C to stop downloading chunks '
@@ -160,8 +165,10 @@ def main():
     )
     processes = []
     for idx, (url, filename) in enumerate(zip(args.urls, args.result_files)):
-        p = Process(target=download_video,
-                    args=(url, args.result_dir / filename, idx))
+        p = Process(
+            target=download_video,
+            args=(url, args.result_dir / filename, idx, request_storage_base_dir)
+        )
         p.start()
         processes.append(p)
     try:
