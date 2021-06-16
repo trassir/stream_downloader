@@ -55,25 +55,27 @@ def download_video(url: str, save_path: Path, proc_idx: int,
             except Exception as e:
                 log_msg(f'unable to download {out.name}. {e}')
     except KeyboardInterrupt:
-        driver.quit()
         if len(dumped):
             log_msg(f'concatenating {len(dumped)} video files')
             try:
                 ok = concat_videos(dumped, save_path, tmp_dir)
-                if ok:
-                    log_msg(f'DONE! Saved to {save_path}')
-                else:
-                    log_msg(f'unable to concat videos {ok}')
+                concat_result = 'saved' if ok else 'unable to concat videos'
             except Exception as e:
                 log_msg(
                     f'unable to concat videos: {e}. '
-                    f'All downloaded video parts could be found in {dump_dir}'
+                    f'All downloaded video parts could be found in {dump_dir}. '
+                    f'Cleaning up selenium files'
                 )
+                driver.quit()
                 log.close()
                 return
         else:
-            log_msg('nothing to concat :(')
+            concat_result = 'nothing to concat :('
+        log_msg(f'{concat_result}. Cleaning up video chunks file tree')
         cleanup_tmp_file_tree(tmp_dir)
+        log_msg(f'{concat_result}. Cleaning up selenium files')
+        driver.quit()
+        log_msg(f'{concat_result}. DONE!')
         log.close()
 
 
