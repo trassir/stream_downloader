@@ -16,7 +16,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver import ActionChains
 
 from stream_downloader.utils import (init_driver, prepare_tmp_file_tree,
-                                     cleanup_tmp_file_tree, concat_videos)
+                                     cleanup_tmp_file_tree, concat_videos,
+                                     cvt_to_mp4)
 
 logging.getLogger('urllib3').setLevel(logging.ERROR)
 
@@ -49,9 +50,12 @@ def download_video(url: str, save_path: Path, proc_idx: int,
             body = body['body']
             out = dump_dir / f'{idx}.ts'
             try:
-                dump_body(body, out)
-                dumped.append(out)
-                log_msg(f'downloaded {idx + 1} chunks')
+                out = dump_body(body, out)
+                if out is not None:
+                    dumped.append(out)
+                    log_msg(f'downloaded {idx + 1} chunks')
+                else:
+                    log_msg(f'unable to download part {idx}, skipping it')
             except Exception as e:
                 log_msg(f'unable to download {out.name}. {e}')
     except KeyboardInterrupt:
@@ -135,10 +139,14 @@ def run_video_if_needed(driver):
         return
 
 
-def dump_body(body, out):
+def dump_body(body, out: Path):
     res = base64.b64decode(body)
     with open(out, 'wb') as f:
         f.write(res)
+    dst = out.parent / f'{out.stem}.mp4'
+    ok = cvt_to_mp4(out, dst)
+    out.unlink()
+    return dst if ok else None
 
 
 def main():

@@ -36,6 +36,18 @@ def concat_videos(videos: List[Path], save_filepath: Path, tmp_dir: Path):
         return process.returncode == 0
 
 
+def cvt_to_mp4(src: Path, dst: Path):
+    assert src.is_file()
+    process = subprocess.Popen(mk_cvt_cmd(src, dst), stdout=subprocess.PIPE)
+    process.communicate()
+    return process.returncode == 0
+
+
+def mk_cvt_cmd(src: Path, dst: Path) -> str:
+    cmd = f'ffmpeg -y -nostdin -hide_banner -loglevel error -i {src} -c:v copy -c:a copy {dst}'
+    return cmd.split()
+
+
 def make_ffmpeg_concat_cmd(list_filepath: Path, save_filepath: Path):
     cmd = 'ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i {} -c copy {} -nostdin'
     return cmd.format(list_filepath, save_filepath).split()
