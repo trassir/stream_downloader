@@ -2,3 +2,5 @@ tqdm
 selenium
 selenium-wire
 chromedriver-autoinstaller
+pafy
+youtube_dl

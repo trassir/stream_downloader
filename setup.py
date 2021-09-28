@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'ivideon_stream_downloader=stream_downloader.ivideon:main',
             'youtube_stream_downloader=stream_downloader.youtube:main',
+            'youtube_video_downloader=stream_downloader.youtube_video:main',
         ]
     },
 )
