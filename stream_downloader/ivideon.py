@@ -157,7 +157,7 @@ def main():
                             help='path to save downloaded videos')
     arg_parser.add_argument('--result_files', type=str, nargs='+',
                             help='space separated file names to save ivideon videos')
-    arg_parser.add_argument('--move_request_dir', type=int, default=0,
+    arg_parser.add_argument('--move_request_dir', action='store_true',
                             help='Move selenium folder to result_dir')
 
     args = arg_parser.parse_args()

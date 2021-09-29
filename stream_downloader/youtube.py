@@ -245,7 +245,8 @@ def main():
                             help='space separated file names to save youtube videos')
     arg_parser.add_argument('--download_last_hours', type=float, default=.25,
                             help='downloads stream for last given hours')
-    arg_parser.add_argument('--re_encode', type=int, default=1)
+    arg_parser.add_argument('--re_encode', action='store_true',
+                            help='Re-encodes video chunks before concat')
     arg_parser.add_argument('--download-threads', type=int, default=4)
     arg_parser.add_argument('--quality_changed_timeout_sec', type=int, default=2)
 
